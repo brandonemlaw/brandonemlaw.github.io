@@ -6,31 +6,42 @@ html {
 
 body {
     font-family: Avenir, sans-serif;
+    max-width: 70em;
+    margin: auto;
 }
 
 
 #career-milestones {
     display: flex;
     flex-wrap: wrap;
+}
 
+
+/* About Section */
+#about-content {
+    display: flex;
+}
+#about-content img {
+    margin-right: 1em;
 }
 
 .career-milestone {
     display: flex;
     align-items: center;
+    padding: 0;
 }
 
 .career-milestone h3 {
     display: flex;
     justify-content: center;
     flex-wrap: wrap;
-    padding: 1em;
+    padding-right: 1em;
 }
 
 .career-milestone img {
     height: 3em;
     width: auto;
-    padding: 0.5em;
+    padding-right: 0.5em;
 }
 
 .career-milestone span {
