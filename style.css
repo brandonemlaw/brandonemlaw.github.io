@@ -1,0 +1,32 @@
+body {
+    font-family: sans-serif;
+}
+
+
+#career-milestones {
+    display: flex;
+    flex-wrap: wrap;
+
+}
+
+.career-milestone {
+    display: flex;
+    align-items: center;
+}
+
+.career-milestone h3 {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    padding: 1em;
+}
+
+.career-milestone img {
+    height: 3em;
+    width: auto;
+    padding: 0.5em;
+}
+
+.career-milestone span {
+    vertical-align: center;
+}
