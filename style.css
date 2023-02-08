@@ -12,6 +12,19 @@ body {
     padding-bottom: 3em;
 }
 
+h1 {
+    font-size: 2em;
+}
+
+h2 {
+    font-size: 1.75em;
+    margin-bottom: 0;
+}
+
+h3 {
+    font-size: 1.5em;
+}
+
 a { 
     color: #0081d1;
     text-decoration: none
