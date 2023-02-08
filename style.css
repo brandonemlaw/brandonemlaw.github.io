@@ -1,5 +1,11 @@
+html {
+    background: rgb(255,255,255);
+    background: linear-gradient(0deg, rgba(255,255,255,1) 0%, rgba(242,242,242,1) 35%, rgba(196,196,196,1) 100%);
+    height: 100%;
+}
+
 body {
-    font-family: sans-serif;
+    font-family: Avenir, sans-serif;
 }
 
 
@@ -30,3 +36,4 @@ body {
 .career-milestone span {
     vertical-align: center;
 }
+
