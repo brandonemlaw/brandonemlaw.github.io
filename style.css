@@ -82,6 +82,23 @@ a {
     vertical-align: center;
 }
 
+.image-stack {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.split-content {
+    display: flex;
+    align-items: center;
+}
+.split-content-left img {
+    width: 30vw;
+    margin-right: 1em;
+}
+.split-content-right img {
+    width: 30vw;
+    margin-left: 1em;
+}
 
 
 /* Reusable Styles */
@@ -92,4 +109,11 @@ a {
 .right-image {
     float: right;
     max-width: 500px;
+    padding-left: 1em;
+}
+
+.small-right-image {
+    float: right;
+    max-width: 300px;
+    padding-left: 1em;
 }
