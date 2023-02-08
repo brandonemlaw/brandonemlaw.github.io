@@ -12,8 +12,13 @@ body {
     padding-bottom: 3em;
 }
 
+main {
+    padding: 0.25em;
+}
+
 h1 {
     font-size: 2em;
+    padding: 0.5em;
 }
 
 h2 {
