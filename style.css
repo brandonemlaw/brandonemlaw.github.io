@@ -13,7 +13,7 @@ body {
 }
 
 a { 
-    color: #ff8833;
+    color: #0081d1;
     text-decoration: none
 }
 
@@ -41,7 +41,7 @@ a {
     color: black;
 }
 #navigation a.active {
-    background-color: #ff8833;
+    background-color: #0081d1;
     color: white;
   }
   
