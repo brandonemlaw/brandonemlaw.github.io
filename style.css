@@ -91,4 +91,5 @@ a {
 
 .right-image {
     float: right;
+    max-width: 500px;
 }
