@@ -20,9 +20,12 @@ body {
 /* About Section */
 #about-content {
     display: flex;
+    align-items: center;
 }
 #about-content img {
     margin-right: 1em;
+    width: auto;
+    height: auto;
 }
 
 .career-milestone {
