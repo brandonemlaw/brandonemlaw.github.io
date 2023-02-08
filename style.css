@@ -1,6 +1,7 @@
 html {
     background: rgb(255,255,255);
     background: linear-gradient(0deg, rgba(255,255,255,1) 0%, rgba(242,242,242,1) 35%, rgba(196,196,196,1) 100%);
+    background-repeat: no-repeat;
     height: 100%;
 }
 
@@ -8,8 +9,26 @@ body {
     font-family: Avenir, sans-serif;
     max-width: 70em;
     margin: auto;
+    padding-bottom: 3em;
 }
 
+h1 {
+    font-size: 2em;
+}
+
+h2 {
+    font-size: 1.75em;
+    margin-bottom: 0;
+}
+
+h3 {
+    font-size: 1.5em;
+}
+
+a { 
+    color: #0081d1;
+    text-decoration: none
+}
 
 #career-milestones {
     display: flex;
@@ -35,7 +54,7 @@ body {
     color: black;
 }
 #navigation a.active {
-    background-color: #f59042;
+    background-color: #0081d1;
     color: white;
   }
   
@@ -76,3 +95,38 @@ body {
     vertical-align: center;
 }
 
+.image-stack {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.split-content {
+    display: flex;
+    align-items: center;
+}
+.split-content-left img {
+    width: 30vw;
+    margin-right: 1em;
+}
+.split-content-right img {
+    width: 30vw;
+    margin-left: 1em;
+}
+
+
+/* Reusable Styles */
+.full-image {
+    width: 100%
+}
+
+.right-image {
+    float: right;
+    max-width: 500px;
+    padding-left: 1em;
+}
+
+.small-right-image {
+    float: right;
+    max-width: 300px;
+    padding-left: 1em;
+}
