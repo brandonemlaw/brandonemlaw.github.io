@@ -1,6 +1,7 @@
 html {
     background: rgb(255,255,255);
     background: linear-gradient(0deg, rgba(255,255,255,1) 0%, rgba(242,242,242,1) 35%, rgba(196,196,196,1) 100%);
+    background-repeat: no-repeat;
     height: 100%;
 }
 
@@ -8,8 +9,13 @@ body {
     font-family: Avenir, sans-serif;
     max-width: 70em;
     margin: auto;
+    padding-bottom: 3em;
 }
 
+a { 
+    color: #f59042;
+    text-decoration: none
+}
 
 #career-milestones {
     display: flex;
@@ -76,3 +82,13 @@ body {
     vertical-align: center;
 }
 
+
+
+/* Reusable Styles */
+.full-image {
+    width: 100%
+}
+
+.right-image {
+    float: right;
+}
