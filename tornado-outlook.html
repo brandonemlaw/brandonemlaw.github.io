@@ -180,7 +180,9 @@
                         `${Math.round(timesPerYear)} times per year` : 
                         `${timesPerYear.toFixed(1)} times per year`;
                 } else {
-                    frequencyText = `Once every ${frequency.toFixed(1)} years`;
+                    frequencyText = frequency > 2 ?
+                        `Once every ${Math.round(frequency)} years` :
+                        `Once every ${frequency.toFixed(1)} years`;
                 }
 
                 const recentDates = recentOccurrences
