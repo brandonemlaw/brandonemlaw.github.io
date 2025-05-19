@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tornado Outlook</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <style>
         body {
             font-family: 'Arial', sans-serif;
@@ -18,6 +19,7 @@
             border-radius: 10px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
             margin-top: 20px;
+            position: relative;
         }
         .risk-level {
             padding: 10px;
@@ -33,11 +35,11 @@
         }
         .risk-2 { background-color: #2ecc71; }
         .risk-5 { background-color: #8b4513; }
-        .risk-10 { background-color: #f1c40f; color: black; }
+        .risk-10 { background-color: #ffea49; color: black; }
         .risk-15 { background-color: #e74c3c; }
-        .risk-30 { background-color: #ff00ff; }
-        .risk-45 { background-color: #800080; }
-        .risk-60 { background-color: #000080; }
+        .risk-30 { background-color: #dd00dd; }
+        .risk-45 { background-color: #9400cf; }
+        .risk-60 { background-color: #393985; }
         .risk-none { 
             background-color: #808080; 
             color: white; 
@@ -46,13 +48,39 @@
             text-align: center;
             margin: 20px;
         }
+        #map {
+            height: 300px;
+            width: 100%;
+            margin-top: 20px;
+            border-radius: 10px;
+        }
+        .circle-overlay {
+            stroke: #fff;
+            fill: #fff;
+            fill-opacity: 0.2;
+            stroke-width: 2;
+        }
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
     </style>
 </head>
 <body>
     <h1>Tornado Outlook</h1>
     <div id="loading">Loading your location...</div>
     <div id="risk-display" class="risk-container" style="display: none;"></div>
+    <div id="map"></div>
 
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <script>
         const riskColors = {
             2: 'green',
@@ -108,74 +136,159 @@
             const fifteenYearsAgo = new Date();
             fifteenYearsAgo.setFullYear(today.getFullYear() - 10);
             
-            const occurrences = data.outlooks.filter(outlook => {
-                const date = new Date(outlook.utc_issue);
+            const allTimeOccurrences = data.outlooks.filter(outlook => {
                 const riskLevel = getRiskFromThreshold(outlook.threshold);
-                return date >= fifteenYearsAgo && 
-                       date <= today && 
-                       riskLevel !== null && 
-                       riskLevel >= currentRisk;
+                return riskLevel !== null && riskLevel >= currentRisk;
             });
 
-            let lastOccurrence = "Never";
-            let allDates = [];
-            
-            if (occurrences.length > 0) {
-                occurrences.sort((a, b) => 
-                    new Date(b.utc_issue) - new Date(a.utc_issue)
-                );
-                
-                const lastDate = new Date(occurrences[0].utc_issue);
-                const isToday = lastDate.toDateString() === today.toDateString();
-                
-                // Skip today's occurrence if it exists and there are other occurrences
-                const historicalDate = isToday && occurrences.length > 1 ? 
-                    new Date(occurrences[1].utc_issue) : lastDate;
-                
-                lastOccurrence = historicalDate.toLocaleDateString('en-US', {
+            const recentOccurrences = allTimeOccurrences.filter(outlook => {
+                const date = new Date(outlook.utc_issue);
+                return date >= fifteenYearsAgo && date <= today;
+            });
+
+            let frequencyText = "";
+            let dateDisplay = "";
+
+            // Special case for 60% risk
+            if (currentRisk === 60) {
+                dateDisplay = "Note: A 60% risk has only been issued once in U.S. history (during the April 7, 2006 outbreak).";
+                frequencyText = "Extremely rare (once in history)";
+            }
+            // No occurrences ever
+            else if (allTimeOccurrences.length === 0) {
+                dateDisplay = "This risk level has never been issued for this location.";
+                frequencyText = "Never occurred";
+            }
+            // No recent occurrences but has historical ones
+            else if (recentOccurrences.length === 0 && allTimeOccurrences.length > 0) {
+                const lastDate = new Date(Math.max(...allTimeOccurrences.map(o => new Date(o.utc_issue))));
+                dateDisplay = `This risk level hasn't been used here in the last 10 years. Last occurrence: ${lastDate.toLocaleDateString('en-US', {
                     month: 'long',
                     day: 'numeric',
                     year: 'numeric'
-                });
+                })}`;
+                frequencyText = "Not used in last 10 years";
+            }
+            // Has recent occurrences
+            else {
+                const yearsSpan = (today - fifteenYearsAgo) / (1000 * 60 * 60 * 24 * 365.25);
+                const frequency = yearsSpan / recentOccurrences.length;
+                
+                if (frequency < 1) {
+                    const timesPerYear = 1 / frequency;
+                    frequencyText = timesPerYear > 2 ? 
+                        `${Math.round(timesPerYear)} times per year` : 
+                        `${timesPerYear.toFixed(1)} times per year`;
+                } else {
+                    frequencyText = `Once every ${frequency.toFixed(1)} years`;
+                }
 
-                // Get all dates except today if it exists
-                allDates = occurrences
-                    .filter(o => new Date(o.utc_issue).toDateString() !== today.toDateString())
-                    .map(o => new Date(o.utc_issue).toLocaleDateString('en-US', {
+                const recentDates = recentOccurrences
+                    .map(o => new Date(o.utc_issue))
+                    .sort((a, b) => b - a)
+                    .map(date => date.toLocaleDateString('en-US', {
                         month: 'long',
                         day: 'numeric',
                         year: 'numeric'
                     }));
-            }
 
-            const yearsSpan = (today - fifteenYearsAgo) / (1000 * 60 * 60 * 24 * 365.25);
-            let frequencyText;
-            
-            if (occurrences.length === 0) {
-                frequencyText = "No occurrences in the past 10 years";
-            } else {
-                const frequency = yearsSpan / occurrences.length;
-                if (frequency < 1) {
-                    const timesPerYear = (1 / frequency).toFixed(1);
-                    frequencyText = `${timesPerYear} times per year`;
+                if (recentDates.length < 7) {
+                    dateDisplay = `All occurrences in last 10 years:<br>${recentDates.join('<br>')}`;
                 } else {
-                    frequencyText = `Once every ${frequency.toFixed(1)} years`;
+                    dateDisplay = `Last occurrence: ${recentDates[0]}`;
                 }
-            }
-
-            let dateDisplay = "";
-            if (occurrences.length === 0) {
-                dateDisplay = "No previous occurrences";
-            } else if (allDates.length < 7) {
-                dateDisplay = `All occurrences in last 10 years:<br>${allDates.join('<br>')}`;
-            } else {
-                dateDisplay = `Last occurrence: ${lastOccurrence}`;
             }
 
             return {
                 frequency: frequencyText,
                 dateDisplay: dateDisplay
             };
+        }
+
+        let map, circle, marker;
+        let isUpdating = false;
+        
+        async function getCityName(lat, lon) {
+            try {
+                const response = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
+                const data = await response.json();
+                return data.address.city || data.address.town || data.address.village || 'Selected Location';
+            } catch (error) {
+                return 'Selected Location';
+            }
+        }
+
+        function initMap(lat, lon) {
+            map = L.map('map').setView([lat, lon], 9);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+            
+            marker = L.marker([lat, lon], {draggable: true}).addTo(map);
+            circle = L.circle([lat, lon], {
+                radius: 40233.6,
+                className: 'circle-overlay'
+            }).addTo(map);
+
+            marker.on('dragend', async function(e) {
+                const pos = e.target.getLatLng();
+                circle.setLatLng(pos);
+                updateLocation(pos.lat, pos.lng);
+            });
+
+            map.on('click', async function(e) {
+                marker.setLatLng(e.latlng);
+                circle.setLatLng(e.latlng);
+                updateLocation(e.latlng.lat, e.latlng.lng);
+            });
+        }
+
+        async function updateLocation(lat, lon) {
+            if (isUpdating) return;
+            
+            try {
+                isUpdating = true;
+                const display = document.getElementById('risk-display');
+                
+                // Add loading overlay
+                const overlay = document.createElement('div');
+                overlay.className = 'loading-overlay';
+                const spinner = document.createElement('div');
+                spinner.className = 'spinner';
+                overlay.appendChild(spinner);
+                display.appendChild(overlay);
+                
+                const data = await fetchRiskData(lat, lon);
+                const currentRisk = getCurrentRisk(data);
+                const cityName = await getCityName(lat, lon);
+                await updateDisplay(currentRisk, data, cityName);
+            } finally {
+                isUpdating = false;
+                const display = document.getElementById('risk-display');
+                const overlay = display.querySelector('.loading-overlay');
+                if (overlay) overlay.remove();
+            }
+        }
+
+        async function updateDisplay(currentRisk, data, cityName) {
+            const display = document.getElementById('risk-display');
+            
+            if (currentRisk === null) {
+                display.innerHTML = `
+                    <div class="risk-level risk-none">
+                        <h2>No Notable Tornado Risk in ${cityName}</h2>
+                        <p>The Storm Prediction Center has not highlighted this area for tornado potential today</p>
+                    </div>
+                `;
+            } else {
+                const historical = await analyzeHistoricalData(data, currentRisk);
+                display.innerHTML = `
+                    <div class="risk-level ${getRiskClass(currentRisk)}">
+                        <h2>Today's Tornado Risk in ${cityName}: ${currentRisk}%</h2>
+                        <p class="distance-description">Risk of a tornado within 25 miles</p>
+                        <p>Frequency: ${historical.frequency}</p>
+                        <p>${historical.dateDisplay}</p>
+                    </div>
+                `;
+            }
         }
 
         async function init() {
@@ -185,28 +298,14 @@
                 
                 const data = await fetchRiskData(latitude, longitude);
                 const currentRisk = getCurrentRisk(data);
+                const cityName = await getCityName(latitude, longitude);
+                
+                initMap(latitude, longitude);
                 
                 const display = document.getElementById('risk-display');
                 const loading = document.getElementById('loading');
                 
-                if (currentRisk === null) {
-                    display.innerHTML = `
-                        <div class="risk-level risk-none">
-                            <h2>No Notable Tornado Risk Today</h2>
-                            <p>The Storm Prediction Center has not highlighted your area for tornado potential today</p>
-                        </div>
-                    `;
-                } else {
-                    const historical = await analyzeHistoricalData(data, currentRisk);
-                    display.innerHTML = `
-                        <div class="risk-level ${getRiskClass(currentRisk)}">
-                            <h2>Today's Tornado Risk: ${currentRisk}%</h2>
-                            <p class="distance-description">Risk of a tornado within 25 miles</p>
-                            <p>Frequency: ${historical.frequency}</p>
-                            <p>${historical.dateDisplay}</p>
-                        </div>
-                    `;
-                }
+                await updateDisplay(currentRisk, data, cityName);
                 
                 loading.style.display = 'none';
                 display.style.display = 'block';
