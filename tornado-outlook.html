@@ -38,6 +38,10 @@
         .risk-30 { background-color: #ff00ff; }
         .risk-45 { background-color: #800080; }
         .risk-60 { background-color: #000080; }
+        .risk-none { 
+            background-color: #808080; 
+            color: white; 
+        }
         #loading {
             text-align: center;
             margin: 20px;
@@ -101,19 +105,21 @@
 
         async function analyzeHistoricalData(data, currentRisk) {
             const today = new Date();
-            const tenYearsAgo = new Date();
-            tenYearsAgo.setFullYear(today.getFullYear() - 10);
+            const fifteenYearsAgo = new Date();
+            fifteenYearsAgo.setFullYear(today.getFullYear() - 10);
             
             const occurrences = data.outlooks.filter(outlook => {
                 const date = new Date(outlook.utc_issue);
                 const riskLevel = getRiskFromThreshold(outlook.threshold);
-                return date >= tenYearsAgo && 
+                return date >= fifteenYearsAgo && 
                        date <= today && 
                        riskLevel !== null && 
                        riskLevel >= currentRisk;
             });
 
             let lastOccurrence = "Never";
+            let allDates = [];
+            
             if (occurrences.length > 0) {
                 occurrences.sort((a, b) => 
                     new Date(b.utc_issue) - new Date(a.utc_issue)
@@ -131,9 +137,18 @@
                     day: 'numeric',
                     year: 'numeric'
                 });
+
+                // Get all dates except today if it exists
+                allDates = occurrences
+                    .filter(o => new Date(o.utc_issue).toDateString() !== today.toDateString())
+                    .map(o => new Date(o.utc_issue).toLocaleDateString('en-US', {
+                        month: 'long',
+                        day: 'numeric',
+                        year: 'numeric'
+                    }));
             }
 
-            const yearsSpan = (today - tenYearsAgo) / (1000 * 60 * 60 * 24 * 365.25);
+            const yearsSpan = (today - fifteenYearsAgo) / (1000 * 60 * 60 * 24 * 365.25);
             let frequencyText;
             
             if (occurrences.length === 0) {
@@ -148,9 +163,18 @@
                 }
             }
 
+            let dateDisplay = "";
+            if (occurrences.length === 0) {
+                dateDisplay = "No previous occurrences";
+            } else if (allDates.length < 7) {
+                dateDisplay = `All occurrences in last 10 years:<br>${allDates.join('<br>')}`;
+            } else {
+                dateDisplay = `Last occurrence: ${lastOccurrence}`;
+            }
+
             return {
                 frequency: frequencyText,
-                lastTime: lastOccurrence
+                dateDisplay: dateDisplay
             };
         }
 
@@ -167,9 +191,9 @@
                 
                 if (currentRisk === null) {
                     display.innerHTML = `
-                        <div class="risk-level">
-                            <h2>Today's Tornado Risk: No data</h2>
-                            <p>No current risk data available for your location</p>
+                        <div class="risk-level risk-none">
+                            <h2>No Notable Tornado Risk Today</h2>
+                            <p>The Storm Prediction Center has not highlighted your area for tornado potential today</p>
                         </div>
                     `;
                 } else {
@@ -179,7 +203,7 @@
                             <h2>Today's Tornado Risk: ${currentRisk}%</h2>
                             <p class="distance-description">Risk of a tornado within 25 miles</p>
                             <p>Frequency: ${historical.frequency}</p>
-                            <p>Last occurrence: ${historical.lastTime}</p>
+                            <p>${historical.dateDisplay}</p>
                         </div>
                     `;
                 }
