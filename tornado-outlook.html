@@ -133,21 +133,26 @@
 
         async function analyzeHistoricalData(data, currentRisk) {
             const today = new Date();
-            const fifteenYearsAgo = new Date();
-            fifteenYearsAgo.setFullYear(today.getFullYear() - 10);
+            const tenYearsAgo = new Date();
+            tenYearsAgo.setFullYear(today.getFullYear() - 10);
             
             const allTimeOccurrences = data.outlooks.filter(outlook => {
                 const riskLevel = getRiskFromThreshold(outlook.threshold);
-                return riskLevel !== null && riskLevel >= currentRisk;
+                const date = new Date(outlook.utc_issue);
+                return riskLevel !== null && riskLevel >= currentRisk && date < today && date.toDateString() !== today.toDateString();
             });
 
             const recentOccurrences = allTimeOccurrences.filter(outlook => {
                 const date = new Date(outlook.utc_issue);
-                return date >= fifteenYearsAgo && date <= today;
+                return date >= tenYearsAgo && date < today && date.toDateString() !== today.toDateString();
             });
 
             let frequencyText = "";
-            let dateDisplay = "";
+            let dateDisplay = ""
+            
+            const historicalDates = recentOccurrences
+                .map(o => new Date(o.utc_issue))
+                .sort((a, b) => b - a);
 
             // Special case for 60% risk
             if (currentRisk === 60) {
@@ -171,33 +176,36 @@
             }
             // Has recent occurrences
             else {
-                const yearsSpan = (today - fifteenYearsAgo) / (1000 * 60 * 60 * 24 * 365.25);
-                const frequency = yearsSpan / recentOccurrences.length;
+                const yearsSpan = (today - tenYearsAgo) / (1000 * 60 * 60 * 24 * 365.25);
+                const frequency = yearsSpan / (recentOccurrences.length); // Subtract today's occurrence
                 
-                if (frequency < 1) {
-                    const timesPerYear = 1 / frequency;
-                    frequencyText = timesPerYear > 2 ? 
-                        `${Math.round(timesPerYear)} times per year` : 
-                        `${timesPerYear.toFixed(1)} times per year`;
+                if (historicalDates.length === 0) {
+                    dateDisplay = "No previous occurrences in the last 10 years. This is the first time.";
+                    frequencyText = "First occurrence in 10 years";
                 } else {
-                    frequencyText = frequency > 2 ?
-                        `Once every ${Math.round(frequency)} years` :
-                        `Once every ${frequency.toFixed(1)} years`;
-                }
+                    if (frequency < 1) {
+                        const timesPerYear = 1 / frequency;
+                        frequencyText = timesPerYear > 2 ? 
+                            `${Math.round(timesPerYear)} times per year` : 
+                            `${timesPerYear.toFixed(1)} times per year`;
+                    } else {
+                        frequencyText = frequency > 2 ?
+                            `Once every ${Math.round(frequency)} years` :
+                            `Once every ${frequency.toFixed(1)} years`;
+                    }
 
-                const recentDates = recentOccurrences
-                    .map(o => new Date(o.utc_issue))
-                    .sort((a, b) => b - a)
-                    .map(date => date.toLocaleDateString('en-US', {
-                        month: 'long',
-                        day: 'numeric',
-                        year: 'numeric'
-                    }));
+                    const formattedDates = historicalDates
+                        .map(date => date.toLocaleDateString('en-US', {
+                            month: 'long',
+                            day: 'numeric',
+                            year: 'numeric'
+                        }));
 
-                if (recentDates.length < 7) {
-                    dateDisplay = `All occurrences in last 10 years:<br>${recentDates.join('<br>')}`;
-                } else {
-                    dateDisplay = `Last occurrence: ${recentDates[0]}`;
+                    if (formattedDates.length < 7) {
+                        dateDisplay = `Previous occurrences in last 10 years:<br>${formattedDates.join('<br>')}`;
+                    } else {
+                        dateDisplay = `Last occurrence: ${formattedDates[0]}`;
+                    }
                 }
             }
 
