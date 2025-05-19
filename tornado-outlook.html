@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tornado Outlook</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .risk-container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-top: 20px;
+        }
+        .risk-level {
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+            color: white;
+        }
+        h2 {
+            margin-bottom: 0.2em;
+        }
+        .distance-description {
+            margin-top: 0;
+        }
+        .risk-2 { background-color: #2ecc71; }
+        .risk-5 { background-color: #8b4513; }
+        .risk-10 { background-color: #f1c40f; color: black; }
+        .risk-15 { background-color: #e74c3c; }
+        .risk-30 { background-color: #ff00ff; }
+        .risk-45 { background-color: #800080; }
+        .risk-60 { background-color: #000080; }
+        #loading {
+            text-align: center;
+            margin: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Tornado Outlook</h1>
+    <div id="loading">Loading your location...</div>
+    <div id="risk-display" class="risk-container" style="display: none;"></div>
+
+    <script>
+        const riskColors = {
+            2: 'green',
+            5: 'brown',
+            10: 'yellow',
+            15: 'red',
+            30: 'magenta',
+            45: 'purple',
+            60: 'navy'
+        };
+
+        function getRiskClass(risk) {
+            return `risk-${risk}`;
+        }
+
+        async function getLocation() {
+            return new Promise((resolve, reject) => {
+                if (!navigator.geolocation) {
+                    reject('Geolocation is not supported');
+                }
+                navigator.geolocation.getCurrentPosition(resolve, reject);
+            });
+        }
+
+        async function fetchRiskData(lat, lon) {
+            const url = `https://mesonet.agron.iastate.edu/json/spcoutlook.py?lat=${lat}&lon=${lon}&cat=tornado&day=1`;
+            const response = await fetch(url);
+            const data = await response.json();
+            return data;
+        }
+
+        function getRiskFromThreshold(threshold) {
+            if (!threshold || threshold === 'SIGN' || isNaN(threshold)) {
+                return null;
+            }
+            return Math.round(parseFloat(threshold) * 100);
+        }
+
+        function getCurrentRisk(data) {
+            if (!data.outlooks || data.outlooks.length === 0) return null;
+            
+            const today = new Date();
+            const todayOutlook = data.outlooks.find(outlook => {
+                const date = new Date(outlook.utc_issue);
+                return date.toDateString() === today.toDateString();
+            });
+            
+            return todayOutlook ? getRiskFromThreshold(todayOutlook.threshold) : null;
+        }
+
+        async function analyzeHistoricalData(data, currentRisk) {
+            const today = new Date();
+            const tenYearsAgo = new Date();
+            tenYearsAgo.setFullYear(today.getFullYear() - 10);
+            
+            const occurrences = data.outlooks.filter(outlook => {
+                const date = new Date(outlook.utc_issue);
+                const riskLevel = getRiskFromThreshold(outlook.threshold);
+                return date >= tenYearsAgo && 
+                       date <= today && 
+                       riskLevel !== null && 
+                       riskLevel >= currentRisk;
+            });
+
+            let lastOccurrence = "Never";
+            if (occurrences.length > 0) {
+                occurrences.sort((a, b) => 
+                    new Date(b.utc_issue) - new Date(a.utc_issue)
+                );
+                
+                const lastDate = new Date(occurrences[0].utc_issue);
+                const isToday = lastDate.toDateString() === today.toDateString();
+                
+                // Skip today's occurrence if it exists and there are other occurrences
+                const historicalDate = isToday && occurrences.length > 1 ? 
+                    new Date(occurrences[1].utc_issue) : lastDate;
+                
+                lastOccurrence = historicalDate.toLocaleDateString('en-US', {
+                    month: 'long',
+                    day: 'numeric',
+                    year: 'numeric'
+                });
+            }
+
+            const yearsSpan = (today - tenYearsAgo) / (1000 * 60 * 60 * 24 * 365.25);
+            let frequencyText;
+            
+            if (occurrences.length === 0) {
+                frequencyText = "No occurrences in the past 10 years";
+            } else {
+                const frequency = yearsSpan / occurrences.length;
+                if (frequency < 1) {
+                    const timesPerYear = (1 / frequency).toFixed(1);
+                    frequencyText = `${timesPerYear} times per year`;
+                } else {
+                    frequencyText = `Once every ${frequency.toFixed(1)} years`;
+                }
+            }
+
+            return {
+                frequency: frequencyText,
+                lastTime: lastOccurrence
+            };
+        }
+
+        async function init() {
+            try {
+                const position = await getLocation();
+                const { latitude, longitude } = position.coords;
+                
+                const data = await fetchRiskData(latitude, longitude);
+                const currentRisk = getCurrentRisk(data);
+                
+                const display = document.getElementById('risk-display');
+                const loading = document.getElementById('loading');
+                
+                if (currentRisk === null) {
+                    display.innerHTML = `
+                        <div class="risk-level">
+                            <h2>Today's Tornado Risk: No data</h2>
+                            <p>No current risk data available for your location</p>
+                        </div>
+                    `;
+                } else {
+                    const historical = await analyzeHistoricalData(data, currentRisk);
+                    display.innerHTML = `
+                        <div class="risk-level ${getRiskClass(currentRisk)}">
+                            <h2>Today's Tornado Risk: ${currentRisk}%</h2>
+                            <p class="distance-description">Risk of a tornado within 25 miles</p>
+                            <p>Frequency: ${historical.frequency}</p>
+                            <p>Last occurrence: ${historical.lastTime}</p>
+                        </div>
+                    `;
+                }
+                
+                loading.style.display = 'none';
+                display.style.display = 'block';
+            } catch (error) {
+                document.getElementById('loading').innerHTML = `Error: ${error.message}`;
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>
